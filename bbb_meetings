@@ -1,0 +1,70 @@
+#!/usr/bin/perl -w
+# -*- perl -*-
+
+use Munin::Plugin;
+
+if ($ARGV[0] and $ARGV[0] eq "autoconf") {
+    print "yes\n";
+    exit 0;
+}
+
+my $column = {
+    "meetings" => 0,
+    "users" => 1,
+    "videos" => 3
+};
+my $name = {
+    "meetings" => "Meetings",
+    "users" => "Users",
+    "videos" => "Videos"
+};
+
+if ($0 =~ /^(?:|.*\/)bbb_(.+)$/)
+{
+    $type = $1;
+    $column = $$column{$type};
+    $name = $$name{$type};
+}
+
+my %mems;
+&fetch_bbbinfo;
+
+if ($ARGV[0] and $ARGV[0] eq "config") {
+    print "graph_args -l 0\n";
+    print "graph_vlabel $name\n";
+    print "graph_title BBB $name\n";
+    print "graph_category bbb\n";
+    print "graph_info This graph shows bbb $type on servers.\n";
+    print "graph_order ", join (" ", sort keys %mems), "\n";
+    print "graph_total total\n";
+
+    $area = 0;
+    foreach (sort keys %mems) {
+	print "$_.label $_\n";
+	if ($area) {
+	    print "$_.draw STACK\n";
+	} else {
+	    print "$_.draw AREA\n";
+	    $area = 1;
+	}
+	print "$_.info Server $_.\n";
+    }
+    exit 0;
+}
+
+foreach (sort keys %mems) {
+    print "$_.value $mems{$_}[$column]\n";
+}
+
+exit 0;
+
+sub fetch_bbbinfo {
+    open (IN, "/usr/bin/docker exec -t scalelite-api /bin/sh -c \"./bin/rake status\" |") ||
+      die "Could not open docker for reading: $!";
+    while (<IN>) {
+	if (/^\s*([^\.\s]+)\S*\s+enabled\s+online\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)/i) {
+	    $mems{$1} = [ $2, $3, $4, $5 ];
+	}
+    }
+    close (IN);
+}
