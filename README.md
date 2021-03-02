@@ -1,3 +1,3 @@
 # munin-plugin-scalelite
 
-Tiny plugin for scalelite load monitoring
+Tiny plugin for scalelite (BigBlueButton load balancer) monitoring
